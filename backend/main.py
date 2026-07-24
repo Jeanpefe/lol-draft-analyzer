@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from typing import Annotated
-
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -85,7 +83,7 @@ def recommend_picks(
     return engine.recommend_picks(draft, slot)
 
 
-@app.get("/api/draft/available")
+@app.post("/api/draft/available")
 def available_champions(draft: DraftState) -> list[str]:
     return engine.get_available_champions(draft)
 

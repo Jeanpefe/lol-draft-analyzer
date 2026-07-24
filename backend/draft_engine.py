@@ -51,6 +51,16 @@ def _build_champion_role_wr(df: pd.DataFrame) -> pd.DataFrame:
     return grouped
 
 
+def _build_champion_role_wr_aggregated(df: pd.DataFrame) -> pd.DataFrame:
+    by_side = _build_champion_role_wr(df)
+    agg = by_side.groupby(["role", "champion"]).agg(
+        games=("games", "sum"),
+        wins=("wins", "sum"),
+    ).reset_index()
+    agg["wr"] = agg["wins"] / agg["games"]
+    return agg
+
+
 def _build_matchup_wr(df: pd.DataFrame) -> pd.DataFrame:
     rows = []
     for _, row in df.iterrows():
@@ -122,6 +132,7 @@ def init_engine(path: str = DATA_PATH) -> None:
     df = _load_data(path)
 
     tables["champion_role_wr"] = _build_champion_role_wr(df)
+    tables["champion_role_wr_agg"] = _build_champion_role_wr_aggregated(df)
     tables["matchup_wr"] = _build_matchup_wr(df)
     tables["synergy_wr"] = _build_synergy_wr(df)
     tables["side_base_wr"] = _build_side_base_wr(df)
@@ -285,8 +296,8 @@ def calculate_winrate(draft: DraftState) -> DraftAnalysis:
     confidence = calculate_confidence(draft)
 
     return DraftAnalysis(
-        blue_winrate=round(blue_wr, 4),
-        red_winrate=round(red_wr, 4),
+        blue_winrate=round(blue_wr * 100, 1),
+        red_winrate=round(red_wr * 100, 1),
         blue_confidence=confidence,
         red_confidence=confidence,
         factors=factors,
@@ -331,7 +342,7 @@ def recommend_picks(draft: DraftState, slot: str) -> list[PickRecommendation]:
         recommendations.append(PickRecommendation(
             champion=champ,
             role=role,
-            predicted_winrate=wr,
+            predicted_winrate=round(wr, 1),
             confidence=analysis.blue_confidence,
             factors=analysis.factors,
         ))
@@ -346,16 +357,16 @@ def get_all_champions() -> list[ChampionStats]:
     ban_rates = tables["ban_rates"]
 
     stats = []
-    for _, row in tables["champion_role_wr"].iterrows():
+    for _, row in tables["champion_role_wr_agg"].iterrows():
         pickrate = row["games"] / total_matches if total_matches else 0
         stats.append(ChampionStats(
             name=row["champion"],
             role=row["role"],
             games=int(row["games"]),
             wins=int(row["wins"]),
-            winrate=round(row["wr"], 4),
-            pickrate=round(pickrate, 4),
-            banrate=round(ban_rates.get(row["champion"], 0), 4),
+            winrate=round(row["wr"] * 100, 1),
+            pickrate=round(pickrate * 100, 1),
+            banrate=round(ban_rates.get(row["champion"], 0) * 100, 1),
         ))
     return stats
 
@@ -365,7 +376,7 @@ def get_champion_detail(name: str) -> list[ChampionStats]:
     total_matches = tables["raw"]["gameid"].nunique()
     ban_rates = tables["ban_rates"]
 
-    subset = tables["champion_role_wr"][tables["champion_role_wr"]["champion"] == name]
+    subset = tables["champion_role_wr_agg"][tables["champion_role_wr_agg"]["champion"] == name]
     stats = []
     for _, row in subset.iterrows():
         pickrate = row["games"] / total_matches if total_matches else 0
@@ -374,9 +385,9 @@ def get_champion_detail(name: str) -> list[ChampionStats]:
             role=row["role"],
             games=int(row["games"]),
             wins=int(row["wins"]),
-            winrate=round(row["wr"], 4),
-            pickrate=round(pickrate, 4),
-            banrate=round(ban_rates.get(name, 0), 4),
+            winrate=round(row["wr"] * 100, 1),
+            pickrate=round(pickrate * 100, 1),
+            banrate=round(ban_rates.get(name, 0) * 100, 1),
         ))
     return stats
 
