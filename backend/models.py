@@ -25,6 +25,7 @@ class Factor(BaseModel):
     name: str
     impact: float
     description: str
+    games: int | None = None
 
 
 class DraftAnalysis(BaseModel):
@@ -51,3 +52,28 @@ class ChampionStats(BaseModel):
     winrate: float
     pickrate: float
     banrate: float
+
+
+class CounterResult(BaseModel):
+    champion: str
+    games: int
+    winrate_against: float
+    description: str
+
+
+class SynergyResult(BaseModel):
+    champion: str
+    games: int
+    winrate_together: float
+    description: str
+
+
+class TeamDraftRecord(BaseModel):
+    gameid: str
+    league: str
+    date: str
+    side: str
+    opponent: str
+    result: str
+    bans: list[str]
+    picks: dict[str, str | None]

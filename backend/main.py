@@ -7,9 +7,12 @@ from fastapi.middleware.cors import CORSMiddleware
 import draft_engine as engine
 from models import (
     ChampionStats,
+    CounterResult,
     DraftAnalysis,
     DraftState,
     PickRecommendation,
+    SynergyResult,
+    TeamDraftRecord,
 )
 
 
@@ -36,11 +39,14 @@ app.add_middleware(
 @app.get("/api/champions")
 def list_champions(
     role: str | None = Query(None, description="Filter by role"),
+    league: str | None = Query(None, description="Filter by league"),
+    patch: str | None = Query(None, description="Filter by patch"),
+    date_from: str | None = Query(None, description="Filter from date (YYYY-MM-DD)"),
+    date_to: str | None = Query(None, description="Filter to date (YYYY-MM-DD)"),
 ) -> list[ChampionStats]:
-    stats = engine.get_all_champions()
-    if role:
-        stats = [s for s in stats if s.role == role]
-    return stats
+    return engine.get_all_champions(
+        league=league, patch=patch, date_from=date_from, date_to=date_to, role=role,
+    )
 
 
 @app.get("/api/champions/{name}")
@@ -55,12 +61,26 @@ def get_champion(name: str) -> list[ChampionStats]:
 def get_champion_counters(
     name: str,
     role: str = Query(..., description="Role to check counters for"),
-) -> list[dict]:
+) -> list[CounterResult]:
     return engine.get_counters(name, role)
 
 
+@app.get("/api/champions/{name}/matches")
+def get_champion_matches(
+    name: str,
+    role: str | None = Query(None, description="Filter by role"),
+    league: str | None = Query(None, description="Filter by league"),
+    patch: str | None = Query(None, description="Filter by patch"),
+    date_from: str | None = Query(None, description="Filter from date (YYYY-MM-DD)"),
+    date_to: str | None = Query(None, description="Filter to date (YYYY-MM-DD)"),
+) -> list[dict]:
+    return engine.get_champion_matches(
+        name, league=league, patch=patch, date_from=date_from, date_to=date_to, role=role,
+    )
+
+
 @app.get("/api/champions/{name}/synergies")
-def get_champion_synergies(name: str) -> list[dict]:
+def get_champion_synergies(name: str) -> list[SynergyResult]:
     return engine.get_synergies(name)
 
 
@@ -74,11 +94,7 @@ def recommend_picks(
     draft: DraftState,
     slot: str = Query(..., description="Slot to recommend for, e.g. 'blue_mid'"),
 ) -> list[PickRecommendation]:
-    if slot not in [
-        f"{side}_{role}"
-        for side in ["blue", "red"]
-        for role in ["top", "jng", "mid", "bot", "sup"]
-    ]:
+    if slot not in engine.VALID_SLOTS:
         raise HTTPException(status_code=400, detail=f"Invalid slot: {slot}")
     return engine.recommend_picks(draft, slot)
 
@@ -94,7 +110,7 @@ def list_teams() -> list[str]:
 
 
 @app.get("/api/teams/{name}/draft")
-def team_draft_history(name: str) -> list[dict]:
+def team_draft_history(name: str) -> list[TeamDraftRecord]:
     records = engine.get_team_draft(name)
     if not records:
         raise HTTPException(status_code=404, detail=f"Team '{name}' not found")
