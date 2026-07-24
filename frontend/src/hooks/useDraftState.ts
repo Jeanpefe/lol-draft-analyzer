@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { DraftState, DraftAnalysis, PickRecommendation } from "../types/draft";
 import { api } from "../api/client";
-
-const ROLES = ["top", "jng", "mid", "bot", "sup"] as const;
+import { ROLES } from "../constants";
 
 export const EMPTY_DRAFT: DraftState = {
   gameid: null,
@@ -86,7 +85,7 @@ export function useDraftState() {
     abortRef.current = controller;
 
     api
-      .analyzeDraft(draft)
+      .analyzeDraft(draft, controller.signal)
       .then((result) => {
         if (!controller.signal.aborted) setAnalysis(result);
       })

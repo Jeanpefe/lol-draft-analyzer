@@ -1,11 +1,12 @@
 import { useEffect, useState, useMemo } from "react";
-import type { ChampionStats, DraftState } from "../types/draft";
+import type { ChampionStats, DraftState, Filters } from "../types/draft";
 import { useDraftState } from "../hooks/useDraftState";
 import { api } from "../api/client";
+import { ROLES, VALID_SLOTS } from "../constants";
+import { getSideStyles } from "../theme";
 import DraftBoard from "../components/DraftBoard";
 import FactorsList from "../components/FactorsList";
-
-const ROLES = ["top", "jng", "mid", "bot", "sup"] as const;
+import FiltersBar from "../components/FiltersBar";
 
 export default function SimulatorPage() {
   const {
@@ -22,10 +23,22 @@ export default function SimulatorPage() {
   const [champions, setChampions] = useState<ChampionStats[]>([]);
   const [activeRecSlot, setActiveRecSlot] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [filters, setFilters] = useState<Filters>({});
+  const [leagues, setLeagues] = useState<string[]>([]);
+  const [patches, setPatches] = useState<string[]>([]);
 
   useEffect(() => {
-    api.getChampions().then(setChampions).catch((e) => setError(String(e)));
+    Promise.all([api.getLeagues(), api.getPatches()])
+      .then(([l, p]) => {
+        setLeagues(l);
+        setPatches(p);
+      })
+      .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    api.getChampions(filters).then(setChampions).catch((e) => setError(String(e)));
+  }, [filters]);
 
   const selectedChampions = useMemo(() => {
     const banned = new Set([...draft.blue_bans, ...draft.red_bans]);
@@ -61,6 +74,13 @@ export default function SimulatorPage() {
         </div>
       )}
 
+      <FiltersBar
+        filters={filters}
+        onChange={setFilters}
+        leagues={leagues}
+        patches={patches}
+      />
+
       {champions.length === 0 && !error ? (
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-8 text-center">
           <p className="text-gray-500">Loading champions...</p>
@@ -83,21 +103,17 @@ export default function SimulatorPage() {
             Pick Recommendations
           </h2>
           <div className="flex flex-wrap gap-2 mb-3">
-            {ROLES.flatMap((r) => [
-              `blue_${r}`,
-              `red_${r}`,
-            ]).map((slot) => {
-              const side = slot.startsWith("blue") ? "blue" : "red";
+            {VALID_SLOTS.map((slot) => {
+              const side = slot.startsWith("blue") ? "blue" as const : "red" as const;
               const role = slot.split("_")[1];
+              const s = getSideStyles(side);
               return (
                 <button
                   key={slot}
                   onClick={() => handleRecRequest(slot)}
                   className={`px-2 py-1 rounded text-xs font-medium border transition-colors ${
                     activeRecSlot === slot
-                      ? side === "blue"
-                        ? "bg-blue-900/40 border-blue-600 text-blue-300"
-                        : "bg-red-900/40 border-red-600 text-red-300"
+                      ? `${s.header} ${s.border} ${s.text}`
                       : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white hover:border-gray-500"
                   }`}
                 >

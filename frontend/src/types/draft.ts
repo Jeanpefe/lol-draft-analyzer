@@ -1,6 +1,3 @@
-export type Side = "Blue" | "Red";
-export type Role = "top" | "jng" | "mid" | "bot" | "sup";
-
 export interface DraftState {
   gameid: string | null;
   league: string | null;
@@ -23,6 +20,7 @@ export interface Factor {
   name: string;
   impact: number;
   description: string;
+  games?: number;
 }
 
 export interface DraftAnalysis {
@@ -67,9 +65,29 @@ export interface TeamDraftHistory {
     opponent: string;
     side: string;
     bans: string[];
-    picks: string[];
-    result: number;
+    picks: Record<string, string | null>;
+    result: string;
   }[];
+}
+
+export interface MatchSideData {
+  teamname: string;
+  bans: string[];
+  roles: Record<string, { champion: string | null; player: string | null }>;
+  result: string;
+  kills: number;
+  deaths: number;
+  assists: number;
+  teamkills: number;
+  teamdeaths: number;
+  dragons: number;
+  barons: number;
+  towers: number;
+  inhibitors: number;
+  damagetochampions: number;
+  totalgold: number;
+  visionscore: number;
+  minionkills: number;
 }
 
 export interface MatchDetail {
@@ -77,33 +95,65 @@ export interface MatchDetail {
   league: string;
   patch: string;
   date: string;
-  duration: string;
-  blue: {
-    teamname: string;
-    bans: string[];
-    top: string;
-    jng: string;
-    mid: string;
-    bot: string;
-    sup: string;
-    result: number;
-    kills: number;
-    deaths: number;
-    assists: number;
-  };
-  red: {
-    teamname: string;
-    bans: string[];
-    top: string;
-    jng: string;
-    mid: string;
-    bot: string;
-    sup: string;
-    result: number;
-    kills: number;
-    deaths: number;
-    assists: number;
-  };
+  gamelength: number;
+  blue: MatchSideData;
+  red: MatchSideData;
+}
+
+export interface ChampionMatchRole {
+  champion: string | null;
+  player: string | null;
+}
+
+export interface ChampionMatchSide {
+  name: string;
+  side: string;
+  result: number;
+  bans: string[];
+  roles: Record<string, ChampionMatchRole>;
+  kills: number;
+  deaths: number;
+  assists: number;
+  teamkills: number;
+  teamdeaths: number;
+  doublekills: number;
+  triplekills: number;
+  quadrakills: number;
+  pentakills: number;
+  firstblood: boolean | null;
+  dragons: number;
+  opp_dragons: number;
+  elders: number;
+  opp_elders: number;
+  heralds: number;
+  opp_heralds: number;
+  void_grubs: number;
+  opp_void_grubs: number;
+  barons: number;
+  opp_barons: number;
+  towers: number;
+  opp_towers: number;
+  inhibitors: number;
+  opp_inhibitors: number;
+  damagetochampions: number;
+  dpm: number;
+  wardsplaced: number;
+  visionscore: number;
+  totalgold: number;
+  earnedgold: number;
+  goldspent: number;
+  minionkills: number;
+  monsterkills: number;
+}
+
+export interface ChampionMatch {
+  gameid: string;
+  league: string;
+  date: string;
+  patch: string;
+  gamelength: number;
+  blue: ChampionMatchSide;
+  red: ChampionMatchSide;
 }
 
 export interface Filters {

@@ -9,42 +9,62 @@ import {
 } from "@tanstack/react-table";
 import { useState } from "react";
 import type { ChampionStats } from "../types/draft";
+import ChampionIcon from "./ChampionIcon";
 
 const col = createColumnHelper<ChampionStats>();
 
-const columns = [
-  col.accessor("name", { header: "Champion" }),
-  col.accessor("role", { header: "Role" }),
-  col.accessor("games", { header: "Games" }),
-  col.accessor("pickrate", {
-    header: "Pick%",
-    cell: (info) => `${info.getValue().toFixed(1)}%`,
-  }),
-  col.accessor("banrate", {
-    header: "Ban%",
-    cell: (info) => `${info.getValue().toFixed(1)}%`,
-  }),
-  col.accessor("winrate", {
-    header: "WR",
-    cell: (info) => {
-      const wr = info.getValue();
-      return (
-        <span className={wr >= 50 ? "text-green-400" : "text-red-400"}>
-          {wr.toFixed(1)}%
-        </span>
-      );
-    },
-  }),
-];
+function buildColumns(onChampionClick?: (name: string, role: string) => void) {
+  return [
+    col.accessor("name", {
+      header: "Champion",
+      cell: (info) => (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onChampionClick?.(info.getValue(), info.row.original.role);
+          }}
+          className="flex items-center gap-2 hover:text-blue-400 transition-colors cursor-pointer text-left"
+        >
+          <ChampionIcon name={info.getValue()} size={28} />
+          <span>{info.getValue()}</span>
+        </button>
+      ),
+    }),
+    col.accessor("role", { header: "Role" }),
+    col.accessor("games", { header: "Games" }),
+    col.accessor("pickrate", {
+      header: "Pick%",
+      cell: (info) => `${info.getValue().toFixed(1)}%`,
+    }),
+    col.accessor("banrate", {
+      header: "Ban%",
+      cell: (info) => `${info.getValue().toFixed(1)}%`,
+    }),
+    col.accessor("winrate", {
+      header: "WR",
+      cell: (info) => {
+        const wr = info.getValue();
+        return (
+          <span className={wr >= 50 ? "text-green-400" : "text-red-400"}>
+            {wr.toFixed(1)}%
+          </span>
+        );
+      },
+    }),
+  ];
+}
 
 interface ChampionTableProps {
   data: ChampionStats[];
+  onChampionClick?: (name: string, role: string) => void;
 }
 
-export default function ChampionTable({ data }: ChampionTableProps) {
+export default function ChampionTable({ data, onChampionClick }: ChampionTableProps) {
   const [sorting, setSorting] = useState<SortingState>([
     { id: "games", desc: true },
   ]);
+
+  const columns = useMemo(() => buildColumns(onChampionClick), [onChampionClick]);
 
   const table = useReactTable({
     data: useMemo(() => data, [data]),

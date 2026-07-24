@@ -7,6 +7,7 @@ interface ChampionGridProps {
   selectedChampions: Set<string>;
   onSelect: (champion: string) => void;
   onClose: () => void;
+  defaultRole?: string;
 }
 
 export default function ChampionGrid({
@@ -14,9 +15,10 @@ export default function ChampionGrid({
   selectedChampions,
   onSelect,
   onClose,
+  defaultRole,
 }: ChampionGridProps) {
   const [filter, setFilter] = useState("");
-  const [roleFilter, setRoleFilter] = useState<string | null>(null);
+  const [roleFilter, setRoleFilter] = useState<string | null>(defaultRole ?? null);
 
   const roles = useMemo(
     () => [...new Set(champions.map((c) => c.role))],

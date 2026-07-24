@@ -1,4 +1,5 @@
 import type { TeamDraftHistory } from "../types/draft";
+import { ROLES } from "../constants";
 import { Link } from "react-router-dom";
 
 interface TeamDraftHistoryProps {
@@ -29,15 +30,15 @@ export default function TeamDraftHistoryComponent({
           </span>
           <span
             className={`px-1.5 py-0.5 rounded text-xs font-bold ${
-              m.result === 1
+              m.result === "Win"
                 ? "bg-green-900/40 text-green-400"
                 : "bg-red-900/40 text-red-400"
             }`}
           >
-            {m.result === 1 ? "W" : "L"}
+            {m.result === "Win" ? "W" : "L"}
           </span>
           <span className="text-gray-500 truncate flex-1">
-            {m.picks.join(", ")}
+            {ROLES.map((r) => m.picks[r]).filter(Boolean).join(", ")}
           </span>
         </Link>
       ))}

@@ -35,6 +35,9 @@ export default function ChampionCard({
       >
         {champion.winrate.toFixed(1)}%
       </span>
+      <span className="text-[9px] text-gray-500">
+        {champion.games}g
+      </span>
     </button>
   );
 }

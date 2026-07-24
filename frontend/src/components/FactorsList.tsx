@@ -37,6 +37,9 @@ export default function FactorsList({ factors }: FactorsListProps) {
           <span className="text-gray-300">
             <span className="font-medium text-gray-200">{f.name}:</span>{" "}
             {f.description}
+            {f.games != null && f.games > 0 && (
+              <span className="text-gray-500 ml-1">({f.games}g)</span>
+            )}
           </span>
         </div>
       ))}

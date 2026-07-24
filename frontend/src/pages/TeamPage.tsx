@@ -1,27 +1,20 @@
-import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import type { TeamDraftHistory } from "../types/draft";
 import { api } from "../api/client";
+import { useAsyncData } from "../hooks/useAsyncData";
 import TeamDraftHistoryComponent from "../components/TeamDraftHistory";
 
 export default function TeamPage() {
   const { teamname } = useParams<{ teamname: string }>();
-  const [data, setData] = useState<TeamDraftHistory | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!teamname) return;
-    setError(null);
-    api
-      .getTeamDraft(teamname)
-      .then(setData)
-      .catch(() => setError("Team not found"));
-  }, [teamname]);
+  const { data, error } = useAsyncData<TeamDraftHistory>(
+    (signal) => api.getTeamDraft(teamname!, signal),
+    [teamname],
+  );
 
   if (error) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-400">{error}</p>
+        <p className="text-red-400">Team not found</p>
       </div>
     );
   }

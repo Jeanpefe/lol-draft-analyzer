@@ -1,5 +1,6 @@
 import type {
   ChampionStats,
+  ChampionMatch,
   DraftState,
   DraftAnalysis,
   PickRecommendation,
@@ -10,7 +11,10 @@ import type {
 
 const API_BASE = "";
 
-async function fetchAPI<T>(path: string, options?: RequestInit): Promise<T> {
+async function fetchAPI<T>(
+  path: string,
+  options?: RequestInit & { signal?: AbortSignal },
+): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     headers: { "Content-Type": "application/json" },
     ...options,
@@ -19,9 +23,9 @@ async function fetchAPI<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
-function buildQuery(params?: Filters): string {
+function buildQuery(params?: object): string {
   if (!params) return "";
-  const entries = Object.entries(params as Record<string, unknown>).filter(
+  const entries = Object.entries(params).filter(
     ([, v]) => v !== undefined && v !== "",
   ) as [string, string][];
   if (entries.length === 0) return "";
@@ -29,55 +33,75 @@ function buildQuery(params?: Filters): string {
 }
 
 export const api = {
-  getChampions: (params?: Filters) =>
+  getChampions: (params?: Filters, signal?: AbortSignal) =>
     fetchAPI<ChampionStats[]>(
       "/api/champions" + buildQuery(params),
+      { signal },
     ),
 
-  getChampion: (name: string) =>
-    fetchAPI<ChampionStats[]>(`/api/champions/${encodeURIComponent(name)}`),
+  getChampion: (name: string, signal?: AbortSignal) =>
+    fetchAPI<ChampionStats[]>(`/api/champions/${encodeURIComponent(name)}`, { signal }),
 
-  getChampionCounters: (name: string, role: string) =>
+  getChampionCounters: (name: string, role: string, signal?: AbortSignal) =>
     fetchAPI<{ champion: string; wr: number }[]>(
       `/api/champions/${encodeURIComponent(name)}/counters?role=${role}`,
+      { signal },
     ),
 
-  getChampionSynergies: (name: string) =>
+  getChampionSynergies: (name: string, signal?: AbortSignal) =>
     fetchAPI<{ champion: string; wr: number }[]>(
       `/api/champions/${encodeURIComponent(name)}/synergies`,
+      { signal },
     ),
 
-  analyzeDraft: (draft: DraftState) =>
+  getChampionMatches: (
+    name: string,
+    params?: Filters & { role?: string },
+    signal?: AbortSignal,
+  ) =>
+    fetchAPI<ChampionMatch[]>(
+      `/api/champions/${encodeURIComponent(name)}/matches` + buildQuery(params),
+      { signal },
+    ),
+
+  analyzeDraft: (draft: DraftState, signal?: AbortSignal) =>
     fetchAPI<DraftAnalysis>("/api/draft/analyze", {
       method: "POST",
       body: JSON.stringify(draft),
+      signal,
     }),
 
-  recommendPicks: (draft: DraftState, slot: string) =>
+  recommendPicks: (draft: DraftState, slot: string, signal?: AbortSignal) =>
     fetchAPI<PickRecommendation[]>(
       `/api/draft/recommend?slot=${slot}`,
-      { method: "POST", body: JSON.stringify(draft) },
+      { method: "POST", body: JSON.stringify(draft), signal },
     ),
 
-  getAvailableChampions: (draft: DraftState) =>
+  getAvailableChampions: (draft: DraftState, signal?: AbortSignal) =>
     fetchAPI<string[]>("/api/draft/available", {
       method: "POST",
       body: JSON.stringify(draft),
+      signal,
     }),
 
-  getTeams: () => fetchAPI<string[]>("/api/teams"),
+  getTeams: (signal?: AbortSignal) =>
+    fetchAPI<string[]>("/api/teams", { signal }),
 
-  getTeamDraft: (name: string) =>
+  getTeamDraft: (name: string, signal?: AbortSignal) =>
     fetchAPI<TeamDraftHistory>(
       `/api/teams/${encodeURIComponent(name)}/draft`,
+      { signal },
     ),
 
-  getLeagues: () => fetchAPI<string[]>("/api/leagues"),
+  getLeagues: (signal?: AbortSignal) =>
+    fetchAPI<string[]>("/api/leagues", { signal }),
 
-  getPatches: () => fetchAPI<string[]>("/api/patches"),
+  getPatches: (signal?: AbortSignal) =>
+    fetchAPI<string[]>("/api/patches", { signal }),
 
-  getMatch: (gameid: string) =>
+  getMatch: (gameid: string, signal?: AbortSignal) =>
     fetchAPI<MatchDetail>(
       `/api/matches/${encodeURIComponent(gameid)}`,
+      { signal },
     ),
 };
