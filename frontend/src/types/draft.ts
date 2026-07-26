@@ -156,6 +156,26 @@ export interface ChampionMatch {
   red: ChampionMatchSide;
 }
 
+export interface CounterResult {
+  champion: string;
+  games: number;
+  winrate_against: number;
+  description: string;
+}
+
+export interface SynergyResult {
+  champion: string;
+  games: number;
+  winrate_together: number;
+  description: string;
+}
+
+export interface PatchEvolution {
+  patch: string;
+  games: number;
+  winrate: number;
+}
+
 export interface Filters {
   league?: string;
   patch?: string;

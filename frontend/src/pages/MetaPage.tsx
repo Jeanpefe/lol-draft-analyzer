@@ -4,6 +4,7 @@ import { api } from "../api/client";
 import { useAsyncData } from "../hooks/useAsyncData";
 import FiltersBar from "../components/FiltersBar";
 import ChampionTable from "../components/ChampionTable";
+import ChampionDetailPanel from "../components/ChampionDetailPanel";
 import ChampionMatchesModal from "../components/ChampionMatchesModal";
 
 export default function MetaPage() {
@@ -12,6 +13,7 @@ export default function MetaPage() {
     name: string;
     role: string;
   } | null>(null);
+  const [showMatches, setShowMatches] = useState(false);
 
   const { data: leagues } = useAsyncData<string[]>(
     (signal) => api.getLeagues(signal),
@@ -47,17 +49,32 @@ export default function MetaPage() {
         ) : (
           <ChampionTable
             data={champions ?? []}
-            onChampionClick={(name, role) => setSelectedChampion({ name, role })}
+            onChampionClick={(name, role) => {
+              setSelectedChampion({ name, role });
+              setShowMatches(false);
+            }}
           />
         )}
       </div>
 
-      {selectedChampion && (
+      {selectedChampion && !showMatches && (
+        <ChampionDetailPanel
+          championName={selectedChampion.name}
+          initialRole={selectedChampion.role}
+          onClose={() => setSelectedChampion(null)}
+          onShowMatches={() => setShowMatches(true)}
+        />
+      )}
+
+      {selectedChampion && showMatches && (
         <ChampionMatchesModal
           championName={selectedChampion.name}
           role={selectedChampion.role}
           filters={filters}
-          onClose={() => setSelectedChampion(null)}
+          onClose={() => {
+            setShowMatches(false);
+            setSelectedChampion(null);
+          }}
         />
       )}
     </div>

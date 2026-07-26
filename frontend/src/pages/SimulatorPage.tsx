@@ -26,6 +26,7 @@ export default function SimulatorPage() {
   const [filters, setFilters] = useState<Filters>({});
   const [leagues, setLeagues] = useState<string[]>([]);
   const [patches, setPatches] = useState<string[]>([]);
+  const [availableNames, setAvailableNames] = useState<string[] | null>(null);
 
   useEffect(() => {
     Promise.all([api.getLeagues(), api.getPatches()])
@@ -40,7 +41,22 @@ export default function SimulatorPage() {
     api.getChampions(filters).then(setChampions).catch((e) => setError(String(e)));
   }, [filters]);
 
+  useEffect(() => {
+    api
+      .getAvailableChampions(draft)
+      .then(setAvailableNames)
+      .catch(() => setAvailableNames(null));
+  }, [draft]);
+
   const selectedChampions = useMemo(() => {
+    if (availableNames) {
+      const available = new Set(availableNames);
+      return new Set(
+        champions
+          .map((c) => c.name)
+          .filter((name) => !available.has(name)),
+      );
+    }
     const banned = new Set([...draft.blue_bans, ...draft.red_bans]);
     const picked = new Set<string>(
       ROLES.flatMap((r) => [
@@ -49,7 +65,7 @@ export default function SimulatorPage() {
       ]).filter((x): x is string => typeof x === "string"),
     );
     return new Set([...banned, ...picked]);
-  }, [draft]);
+  }, [draft, availableNames, champions]);
 
   const handleRecRequest = (slot: string) => {
     setActiveRecSlot(slot);

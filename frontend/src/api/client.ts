@@ -7,6 +7,9 @@ import type {
   TeamDraftHistory,
   MatchDetail,
   Filters,
+  CounterResult,
+  SynergyResult,
+  PatchEvolution,
 } from "../types/draft";
 
 const API_BASE = "";
@@ -43,14 +46,20 @@ export const api = {
     fetchAPI<ChampionStats[]>(`/api/champions/${encodeURIComponent(name)}`, { signal }),
 
   getChampionCounters: (name: string, role: string, signal?: AbortSignal) =>
-    fetchAPI<{ champion: string; wr: number }[]>(
+    fetchAPI<CounterResult[]>(
       `/api/champions/${encodeURIComponent(name)}/counters?role=${role}`,
       { signal },
     ),
 
   getChampionSynergies: (name: string, signal?: AbortSignal) =>
-    fetchAPI<{ champion: string; wr: number }[]>(
+    fetchAPI<SynergyResult[]>(
       `/api/champions/${encodeURIComponent(name)}/synergies`,
+      { signal },
+    ),
+
+  getChampionEvolution: (name: string, signal?: AbortSignal) =>
+    fetchAPI<PatchEvolution[]>(
+      `/api/champions/${encodeURIComponent(name)}/evolution`,
       { signal },
     ),
 

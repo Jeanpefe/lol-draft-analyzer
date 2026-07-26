@@ -3,6 +3,7 @@ import { Outlet, Link, useLocation } from "react-router-dom";
 const navLinks = [
   { to: "/", label: "Meta" },
   { to: "/simulator", label: "Simulador" },
+  { to: "/teams", label: "Equipos" },
 ];
 
 export default function Layout() {
@@ -16,19 +17,24 @@ export default function Layout() {
             LoL Draft Analyzer
           </Link>
           <nav className="flex gap-1">
-            {navLinks.map((link) => (
-              <Link
-                key={link.to}
-                to={link.to}
-                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                  location.pathname === link.to
-                    ? "bg-gray-800 text-white"
-                    : "text-gray-400 hover:text-white hover:bg-gray-800/50"
-                }`}
-              >
-                {link.label}
-              </Link>
-            ))}
+            {navLinks.map((link) => {
+              const isActive = link.to === "/"
+                ? location.pathname === "/"
+                : location.pathname.startsWith(link.to);
+              return (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                    isActive
+                      ? "bg-gray-800 text-white"
+                      : "text-gray-400 hover:text-white hover:bg-gray-800/50"
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
           </nav>
         </div>
       </header>
