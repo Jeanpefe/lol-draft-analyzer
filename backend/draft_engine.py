@@ -46,6 +46,12 @@ STAT_FIELDS: list[tuple[str, str, object]] = [
     ("opp_dragons", "opp_dragons", 0),
     ("elementaldrakes", "elementaldrakes", 0),
     ("opp_elementaldrakes", "opp_elementaldrakes", 0),
+    ("infernals", "infernals", 0),
+    ("mountains", "mountains", 0),
+    ("clouds", "clouds", 0),
+    ("oceans", "oceans", 0),
+    ("chemtechs", "chemtechs", 0),
+    ("hextechs", "hextechs", 0),
     ("elders", "elders", 0),
     ("opp_elders", "opp_elders", 0),
     ("firstherald", "firstherald", None),
@@ -240,9 +246,9 @@ def _filter_df(
     return df
 
 
-def _recompute_filtered_tables(draft: DraftState) -> None:
+def _compute_filtered_side_base(draft: DraftState) -> dict:
     df = _filter_df(league=draft.league, patch=draft.patch)
-    tables["filtered_side_base"] = _build_side_base_wr(df)
+    return _build_side_base_wr(df)
 
 
 def get_champion_wr(champion: str, role: str, side: str) -> tuple[float, int]:
@@ -317,9 +323,17 @@ def _build_side_info(row: pd.Series, side_prefix: str) -> dict:
     for role in ROLES:
         champ = row.get(f"{side_prefix}_{role}")
         player_name = row.get(f"{side_prefix}_{role}_player")
+        dmg = _to_native(row.get(f"{side_prefix}_{role}_damagetochampions"))
+        kills = _to_native(row.get(f"{side_prefix}_{role}_kills"))
+        deaths = _to_native(row.get(f"{side_prefix}_{role}_deaths"))
+        assists = _to_native(row.get(f"{side_prefix}_{role}_assists"))
         role_data[role] = {
             "champion": champ if pd.notna(champ) else None,
             "player": player_name if pd.notna(player_name) else None,
+            "damage": dmg if dmg is not None else 0,
+            "kills": kills if kills is not None else 0,
+            "deaths": deaths if deaths is not None else 0,
+            "assists": assists if assists is not None else 0,
         }
     bans = [row.get(f"ban{i}") for i in range(1, 6) if pd.notna(row.get(f"ban{i}"))]
     stats = _extract_stats(row)
@@ -334,14 +348,9 @@ def _build_side_info(row: pd.Series, side_prefix: str) -> dict:
 
 
 def calculate_winrate(draft: DraftState) -> DraftAnalysis:
-    _recompute_filtered_tables(draft)
-
-    if "filtered_side_base" in tables:
-        blue_wr = tables["filtered_side_base"]["Blue"]
-        red_wr = tables["filtered_side_base"]["Red"]
-    else:
-        blue_wr = SIDE_BLUE_BASE
-        red_wr = SIDE_RED_BASE
+    side_base = _compute_filtered_side_base(draft)
+    blue_wr = side_base["Blue"]
+    red_wr = side_base["Red"]
 
     factors: list[Factor] = []
 
@@ -450,8 +459,9 @@ def recommend_picks(draft: DraftState, slot: str) -> list[PickRecommendation]:
 
     recommendations = []
     for champ in available:
-        setattr(draft, slot, champ)
-        analysis = calculate_winrate(draft)
+        trial = draft.model_copy(deep=True)
+        setattr(trial, slot, champ)
+        analysis = calculate_winrate(trial)
         wr = analysis.blue_winrate if side == "blue" else analysis.red_winrate
 
         recommendations.append(PickRecommendation(
@@ -461,12 +471,12 @@ def recommend_picks(draft: DraftState, slot: str) -> list[PickRecommendation]:
             confidence=analysis.blue_confidence,
             factors=analysis.factors,
         ))
-        setattr(draft, slot, None)
 
     return sorted(recommendations, key=lambda x: x.predicted_winrate, reverse=True)[:20]
 
 
-def get_all_champions(
+def get_champions(
+    name: str | None = None,
     league: str | None = None,
     patch: str | None = None,
     date_from: str | None = None,
@@ -475,16 +485,19 @@ def get_all_champions(
 ) -> list[ChampionStats]:
     from models import ChampionStats
 
-    df = _filter_df(league=league, patch=patch, date_from=date_from, date_to=date_to)
+    has_filters = any((league, patch, date_from, date_to))
+    if has_filters:
+        df = _filter_df(league=league, patch=patch, date_from=date_from, date_to=date_to)
+        total_matches = df["gameid"].nunique()
+        ban_rates = _build_ban_rates(df)
+        agg = _build_champion_role_wr_aggregated(df)
+    else:
+        total_matches = tables["raw"]["gameid"].nunique()
+        ban_rates = tables["ban_rates"]
+        agg = tables["champion_role_wr_agg"]
 
-    if len(df) == 0:
-        return []
-
-    total_matches = df["gameid"].nunique()
-    ban_rates = _build_ban_rates(df)
-
-    agg = _build_champion_role_wr_aggregated(df)
-
+    if name:
+        agg = agg[agg["champion"] == name]
     if role:
         agg = agg[agg["role"] == role]
 
@@ -503,38 +516,30 @@ def get_all_champions(
     return stats
 
 
-def get_champion_detail(name: str) -> list[ChampionStats]:
-    from models import ChampionStats
+def get_counters(
+    champion: str,
+    role: str,
+    league: str | None = None,
+    patch: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+) -> list[CounterResult]:
+    has_filters = any([league, patch, date_from, date_to])
+    if has_filters:
+        df = _filter_df(league=league, patch=patch, date_from=date_from, date_to=date_to)
+        matchup = _build_matchup_wr(df)
+    else:
+        matchup = tables["matchup_wr"]
 
-    total_matches = tables["raw"]["gameid"].nunique()
-    ban_rates = tables["ban_rates"]
-
-    subset = tables["champion_role_wr_agg"][tables["champion_role_wr_agg"]["champion"] == name]
-    stats = []
-    for _, row in subset.iterrows():
-        pickrate = row["games"] / total_matches if total_matches else 0
-        stats.append(ChampionStats(
-            name=row["champion"],
-            role=row["role"],
-            games=int(row["games"]),
-            wins=int(row["wins"]),
-            winrate=round(row["wr"] * 100, 1),
-            pickrate=round(pickrate * 100, 1),
-            banrate=round(ban_rates.get(name, 0) * 100, 1),
-        ))
-    return stats
-
-
-def get_counters(champion: str, role: str) -> list[CounterResult]:
-    subset_a = tables["matchup_wr"][
-        (tables["matchup_wr"]["champ_a"] == champion)
-        & (tables["matchup_wr"]["role"] == role)
-        & (tables["matchup_wr"]["games"] >= 5)
+    subset_a = matchup[
+        (matchup["champ_a"] == champion)
+        & (matchup["role"] == role)
+        & (matchup["games"] >= 5)
     ]
-    subset_b = tables["matchup_wr"][
-        (tables["matchup_wr"]["champ_b"] == champion)
-        & (tables["matchup_wr"]["role"] == role)
-        & (tables["matchup_wr"]["games"] >= 5)
+    subset_b = matchup[
+        (matchup["champ_b"] == champion)
+        & (matchup["role"] == role)
+        & (matchup["games"] >= 5)
     ]
     results = []
     for _, row in subset_a.iterrows():
@@ -558,13 +563,26 @@ def get_counters(champion: str, role: str) -> list[CounterResult]:
     return sorted(seen.values(), key=lambda x: x.winrate_against, reverse=True)
 
 
-def get_synergies(champion: str) -> list[SynergyResult]:
-    subset = tables["synergy_wr"][
+def get_synergies(
+    champion: str,
+    league: str | None = None,
+    patch: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+) -> list[SynergyResult]:
+    has_filters = any([league, patch, date_from, date_to])
+    if has_filters:
+        df = _filter_df(league=league, patch=patch, date_from=date_from, date_to=date_to)
+        synergy = _build_synergy_wr(df)
+    else:
+        synergy = tables["synergy_wr"]
+
+    subset = synergy[
         (
-            (tables["synergy_wr"]["champ_a"] == champion)
-            | (tables["synergy_wr"]["champ_b"] == champion)
+            (synergy["champ_a"] == champion)
+            | (synergy["champ_b"] == champion)
         )
-        & (tables["synergy_wr"]["games"] >= 5)
+        & (synergy["games"] >= 5)
     ]
     results = []
     for _, row in subset.iterrows():
@@ -578,12 +596,31 @@ def get_synergies(champion: str) -> list[SynergyResult]:
     return sorted(results, key=lambda x: x.winrate_together, reverse=True)
 
 
-def get_teams() -> list[str]:
-    return sorted(tables["raw"]["teamname"].dropna().unique().tolist())
+def get_teams() -> list[dict]:
+    import json
+    manifest_path = os.path.join(
+        os.path.dirname(__file__), "..", "frontend", "public", "logos", "manifest.json"
+    )
+    logo_map = {}
+    if os.path.exists(manifest_path):
+        with open(manifest_path) as f:
+            logo_map = json.load(f)
+
+    df = tables["raw"][tables["raw"]["teamname"].notna()]
+    teams = (
+        df.groupby("teamname")["league"]
+        .apply(lambda x: sorted(x.unique().tolist()))
+        .reset_index()
+        .rename(columns={"teamname": "name", "league": "leagues"})
+    )
+    result = teams.to_dict(orient="records")
+    for t in result:
+        t["logo"] = logo_map.get(t["name"])
+    return sorted(result, key=lambda t: t["name"])
 
 
 def get_team_draft(team_name: str) -> list[TeamDraftRecord]:
-    df = tables["raw"][tables["raw"]["teamname"] == team_name]
+    df = tables["raw"][tables["raw"]["teamname"] == team_name].sort_values("date", ascending=False)
     records = []
     for _, row in df.iterrows():
         picks = {
@@ -666,8 +703,14 @@ def get_patches() -> list[str]:
     return sorted(tables["raw"]["patch"].dropna().astype(str).unique().tolist())
 
 
-def get_champion_evolution(champion: str) -> list[dict]:
-    df = tables["raw"]
+def get_champion_evolution(
+    champion: str,
+    league: str | None = None,
+    patch: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+) -> list[dict]:
+    df = _filter_df(league=league, patch=patch, date_from=date_from, date_to=date_to)
     rows = []
     for _, row in df[df["side"] == "Blue"].iterrows():
         won = row["result"]
@@ -704,14 +747,14 @@ def get_match(gameid: str) -> dict | None:
         "date": str(df.iloc[0]["date"]),
         "patch": str(df.iloc[0]["patch"]),
         "gamelength": _to_native(df.iloc[0]["gamelength"]),
-        "blue_team": None,
-        "red_team": None,
+        "blue": None,
+        "red": None,
     }
     for _, row in df.iterrows():
         side = row["side"].lower()
         side_info = _build_side_info(row, side)
-        result[f"{side}_team"] = {
-            "name": side_info["name"],
+        result[side] = {
+            "teamname": side_info["name"],
             "bans": side_info["bans"],
             "roles": side_info["roles"],
             "result": "Win" if row["result"] == 1 else "Loss",

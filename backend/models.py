@@ -68,6 +68,12 @@ class SynergyResult(BaseModel):
     description: str
 
 
+class TeamInfo(BaseModel):
+    name: str
+    leagues: list[str]
+    logo: str | None = None
+
+
 class TeamDraftRecord(BaseModel):
     gameid: str
     league: str

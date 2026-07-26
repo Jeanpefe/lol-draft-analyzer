@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 import draft_engine as engine
 from models import (
@@ -13,6 +14,7 @@ from models import (
     PickRecommendation,
     SynergyResult,
     TeamDraftRecord,
+    TeamInfo,
 )
 
 
@@ -36,22 +38,42 @@ app.add_middleware(
 )
 
 
-@app.get("/api/champions")
-def list_champions(
-    role: str | None = Query(None, description="Filter by role"),
+class FilterParams(BaseModel):
+    league: str | None = None
+    patch: str | None = None
+    date_from: str | None = None
+    date_to: str | None = None
+
+
+def get_filters(
     league: str | None = Query(None, description="Filter by league"),
     patch: str | None = Query(None, description="Filter by patch"),
     date_from: str | None = Query(None, description="Filter from date (YYYY-MM-DD)"),
     date_to: str | None = Query(None, description="Filter to date (YYYY-MM-DD)"),
+) -> FilterParams:
+    return FilterParams(league=league, patch=patch, date_from=date_from, date_to=date_to)
+
+
+@app.get("/api/champions")
+def list_champions(
+    role: str | None = Query(None, description="Filter by role"),
+    filters: FilterParams = Depends(get_filters),
 ) -> list[ChampionStats]:
-    return engine.get_all_champions(
-        league=league, patch=patch, date_from=date_from, date_to=date_to, role=role,
+    return engine.get_champions(
+        league=filters.league, patch=filters.patch,
+        date_from=filters.date_from, date_to=filters.date_to, role=role,
     )
 
 
 @app.get("/api/champions/{name}")
-def get_champion(name: str) -> list[ChampionStats]:
-    stats = engine.get_champion_detail(name)
+def get_champion(
+    name: str,
+    filters: FilterParams = Depends(get_filters),
+) -> list[ChampionStats]:
+    stats = engine.get_champions(
+        name=name, league=filters.league, patch=filters.patch,
+        date_from=filters.date_from, date_to=filters.date_to,
+    )
     if not stats:
         raise HTTPException(status_code=404, detail=f"Champion '{name}' not found")
     return stats
@@ -61,32 +83,46 @@ def get_champion(name: str) -> list[ChampionStats]:
 def get_champion_counters(
     name: str,
     role: str = Query(..., description="Role to check counters for"),
+    filters: FilterParams = Depends(get_filters),
 ) -> list[CounterResult]:
-    return engine.get_counters(name, role)
+    return engine.get_counters(
+        name, role, league=filters.league, patch=filters.patch,
+        date_from=filters.date_from, date_to=filters.date_to,
+    )
 
 
 @app.get("/api/champions/{name}/matches")
 def get_champion_matches(
     name: str,
     role: str | None = Query(None, description="Filter by role"),
-    league: str | None = Query(None, description="Filter by league"),
-    patch: str | None = Query(None, description="Filter by patch"),
-    date_from: str | None = Query(None, description="Filter from date (YYYY-MM-DD)"),
-    date_to: str | None = Query(None, description="Filter to date (YYYY-MM-DD)"),
+    filters: FilterParams = Depends(get_filters),
 ) -> list[dict]:
     return engine.get_champion_matches(
-        name, league=league, patch=patch, date_from=date_from, date_to=date_to, role=role,
+        name, league=filters.league, patch=filters.patch,
+        date_from=filters.date_from, date_to=filters.date_to, role=role,
     )
 
 
 @app.get("/api/champions/{name}/synergies")
-def get_champion_synergies(name: str) -> list[SynergyResult]:
-    return engine.get_synergies(name)
+def get_champion_synergies(
+    name: str,
+    filters: FilterParams = Depends(get_filters),
+) -> list[SynergyResult]:
+    return engine.get_synergies(
+        name, league=filters.league, patch=filters.patch,
+        date_from=filters.date_from, date_to=filters.date_to,
+    )
 
 
 @app.get("/api/champions/{name}/evolution")
-def get_champion_evolution(name: str) -> list[dict]:
-    return engine.get_champion_evolution(name)
+def get_champion_evolution(
+    name: str,
+    filters: FilterParams = Depends(get_filters),
+) -> list[dict]:
+    return engine.get_champion_evolution(
+        name, league=filters.league, patch=filters.patch,
+        date_from=filters.date_from, date_to=filters.date_to,
+    )
 
 
 @app.post("/api/draft/analyze")
@@ -110,7 +146,7 @@ def available_champions(draft: DraftState) -> list[str]:
 
 
 @app.get("/api/teams")
-def list_teams() -> list[str]:
+def list_teams() -> list[TeamInfo]:
     return engine.get_teams()
 
 
