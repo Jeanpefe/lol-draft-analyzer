@@ -20,6 +20,15 @@ function formatDuration(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+function FilterBadge({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="inline-flex items-center gap-1 text-[11px] bg-gray-700/50 text-gray-300 border border-gray-600/50 rounded-full px-2 py-0.5">
+      <span className="text-gray-500">{label}:</span>
+      <span className="font-medium">{value}</span>
+    </span>
+  );
+}
+
 export default function ChampionMatchesModal({
   championName,
   role,
@@ -30,15 +39,23 @@ export default function ChampionMatchesModal({
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
 
+  const filtersKey = JSON.stringify(filters || {});
+
   useEffect(() => {
     setLoading(true);
     setPage(0);
+    const params: Record<string, string> = {};
+    if (filters?.league) params.league = filters.league;
+    if (filters?.patch) params.patch = filters.patch;
+    if (filters?.date_from) params.date_from = filters.date_from;
+    if (filters?.date_to) params.date_to = filters.date_to;
+    if (role) params.role = role;
     api
-      .getChampionMatches(championName, { ...filters, role })
+      .getChampionMatches(championName, params as Filters & { role?: string })
       .then(setMatches)
       .catch(() => setMatches([]))
       .finally(() => setLoading(false));
-  }, [championName, role, filters]);
+  }, [championName, role, filtersKey]);
 
   const totalPages = Math.ceil(matches.length / PAGE_SIZE);
   const pageMatches = useMemo(
@@ -57,6 +74,14 @@ export default function ChampionMatchesModal({
     return false;
   }).length;
 
+  const activeFilterBadges: { label: string; value: string }[] = [];
+  if (filters?.league) activeFilterBadges.push({ label: "League", value: filters.league });
+  if (filters?.patch) activeFilterBadges.push({ label: "Patch", value: filters.patch });
+  if (filters?.role) activeFilterBadges.push({ label: "Role", value: filters.role.toUpperCase() });
+  else if (role) activeFilterBadges.push({ label: "Role", value: role.toUpperCase() });
+  if (filters?.date_from) activeFilterBadges.push({ label: "From", value: filters.date_from });
+  if (filters?.date_to) activeFilterBadges.push({ label: "To", value: filters.date_to });
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
@@ -74,8 +99,8 @@ export default function ChampionMatchesModal({
                 {championName} Match History
               </h2>
               <p className="text-xs text-gray-400">
-                {matches.length} matches &middot; {wins}W {matches.length - wins}L
-                {role && <> &middot; {role.toUpperCase()}</>}
+                {matches.length} matches &middot; {wins}W{" "}
+                {matches.length - wins}L
               </p>
             </div>
           </div>
@@ -87,11 +112,26 @@ export default function ChampionMatchesModal({
           </button>
         </div>
 
+        {activeFilterBadges.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 px-5 py-2 border-b border-gray-800 bg-gray-800/30">
+            <span className="text-[11px] text-gray-500 uppercase tracking-wider mr-1">
+              Filters:
+            </span>
+            {activeFilterBadges.map((f) => (
+              <FilterBadge key={f.label} label={f.label} value={f.value} />
+            ))}
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {loading ? (
-            <p className="text-gray-500 text-center py-12">Loading matches...</p>
+            <p className="text-gray-500 text-center py-12">
+              Loading matches...
+            </p>
           ) : matches.length === 0 ? (
-            <p className="text-gray-500 text-center py-12">No matches found.</p>
+            <p className="text-gray-500 text-center py-12">
+              No matches found.
+            </p>
           ) : (
             pageMatches.map((match) => (
               <div
@@ -106,23 +146,72 @@ export default function ChampionMatchesModal({
                 </div>
 
                 <div className="flex items-stretch p-3 gap-3">
-                  <SideTeam side="blue" match={match} highlightChamp={championName} />
+                  <SideTeam
+                    side="blue"
+                    match={match}
+                    highlightChamp={championName}
+                  />
 
                   <div className="w-48 shrink-0 flex flex-col justify-center gap-1 bg-gray-800/30 rounded-lg px-3 py-2">
-                    <StatRow label="Kills" blue={match.blue.teamkills} red={match.red.teamkills} />
-                    <StatRow label="Deaths" blue={match.blue.teamdeaths} red={match.red.teamdeaths} higherIsBetter={false} />
-                    <StatRow label="Gold" blue={match.blue.totalgold} red={match.red.totalgold} />
-                    <StatRow label="Damage" blue={match.blue.damagetochampions} red={match.red.damagetochampions} />
-                    <StatRow label="Vision" blue={match.blue.visionscore} red={match.red.visionscore} />
+                    <StatRow
+                      label="Kills"
+                      blue={match.blue.teamkills}
+                      red={match.red.teamkills}
+                    />
+                    <StatRow
+                      label="Deaths"
+                      blue={match.blue.teamdeaths}
+                      red={match.red.teamdeaths}
+                      higherIsBetter={false}
+                    />
+                    <StatRow
+                      label="Gold"
+                      blue={match.blue.totalgold}
+                      red={match.red.totalgold}
+                    />
+                    <StatRow
+                      label="Damage"
+                      blue={match.blue.damagetochampions}
+                      red={match.red.damagetochampions}
+                    />
+                    <StatRow
+                      label="Vision"
+                      blue={match.blue.visionscore}
+                      red={match.red.visionscore}
+                    />
                     <div className="border-t border-gray-700 my-1" />
-                    <ObjectiveRow label="Dragons" blue={match.blue.dragons} red={match.red.dragons} />
-                    <ObjectiveRow label="Barons" blue={match.blue.barons} red={match.red.barons} />
-                    <ObjectiveRow label="Towers" blue={match.blue.towers} red={match.red.towers} />
-                    <ObjectiveRow label="Grubs" blue={match.blue.void_grubs} red={match.red.void_grubs} />
-                    <ObjectiveRow label="Inhibs" blue={match.blue.inhibitors} red={match.red.inhibitors} />
+                    <ObjectiveRow
+                      label="Dragons"
+                      blue={match.blue.dragons}
+                      red={match.red.dragons}
+                    />
+                    <ObjectiveRow
+                      label="Barons"
+                      blue={match.blue.barons}
+                      red={match.red.barons}
+                    />
+                    <ObjectiveRow
+                      label="Towers"
+                      blue={match.blue.towers}
+                      red={match.red.towers}
+                    />
+                    <ObjectiveRow
+                      label="Grubs"
+                      blue={match.blue.void_grubs}
+                      red={match.red.void_grubs}
+                    />
+                    <ObjectiveRow
+                      label="Inhibs"
+                      blue={match.blue.inhibitors}
+                      red={match.red.inhibitors}
+                    />
                   </div>
 
-                  <SideTeam side="red" match={match} highlightChamp={championName} />
+                  <SideTeam
+                    side="red"
+                    match={match}
+                    highlightChamp={championName}
+                  />
                 </div>
               </div>
             ))

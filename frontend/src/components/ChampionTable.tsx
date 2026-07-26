@@ -10,6 +10,8 @@ import {
 import { useState } from "react";
 import type { ChampionStats } from "../types/draft";
 import ChampionIcon from "./ChampionIcon";
+import { ROLE_ICONS } from "../constants";
+import type { Role } from "../constants";
 
 const col = createColumnHelper<ChampionStats>();
 
@@ -30,7 +32,18 @@ function buildColumns(onChampionClick?: (name: string, role: string) => void) {
         </button>
       ),
     }),
-    col.accessor("role", { header: "Role" }),
+    col.accessor("role", {
+      header: "Role",
+      cell: (info) => {
+        const role = info.getValue() as Role;
+        const icon = ROLE_ICONS[role];
+        return icon ? (
+          <img src={icon} alt={role.toUpperCase()} className="w-5 h-5" title={role.toUpperCase()} />
+        ) : (
+          role.toUpperCase()
+        );
+      },
+    }),
     col.accessor("games", { header: "Games" }),
     col.accessor("pickrate", {
       header: "Pick%",

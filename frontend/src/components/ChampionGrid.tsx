@@ -1,29 +1,24 @@
 import { useState, useMemo } from "react";
 import type { ChampionStats } from "../types/draft";
-import ChampionCard from "./ChampionCard";
+import ChampionIcon from "./ChampionIcon";
+import { ROLE_ICONS, ALL_ROLES_ICON } from "../constants";
 
 interface ChampionGridProps {
   champions: ChampionStats[];
   selectedChampions: Set<string>;
   onSelect: (champion: string) => void;
-  onClose: () => void;
-  defaultRole?: string;
+  activeSlot: string | null;
 }
 
 export default function ChampionGrid({
   champions,
   selectedChampions,
   onSelect,
-  onClose,
-  defaultRole,
 }: ChampionGridProps) {
   const [filter, setFilter] = useState("");
-  const [roleFilter, setRoleFilter] = useState<string | null>(defaultRole ?? null);
+  const [roleFilter, setRoleFilter] = useState<string | null>(null);
 
-  const roles = useMemo(
-    () => [...new Set(champions.map((c) => c.role))],
-    [champions],
-  );
+  const roles = useMemo(() => ["top", "jng", "mid", "bot", "sup"], []);
 
   const filtered = useMemo(() => {
     return champions
@@ -34,60 +29,78 @@ export default function ChampionGrid({
         if (roleFilter && c.role !== roleFilter) return false;
         return true;
       })
-      .sort((a, b) => b.winrate - a.winrate);
+      .sort((a, b) => a.name.localeCompare(b.name));
   }, [champions, filter, roleFilter, selectedChampions]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-      <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
-        <div className="p-4 border-b border-gray-700 flex items-center justify-between gap-4">
-          <input
-            type="text"
-            placeholder="Search champion..."
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            className="bg-gray-800 border border-gray-600 rounded px-3 py-1.5 text-sm text-white flex-1 focus:outline-none focus:border-blue-500"
-            autoFocus
-          />
-          <div className="flex gap-1">
+    <div className="bg-gray-900 border border-gray-700 rounded-xl flex flex-col h-full overflow-hidden">
+      <div className="p-3 border-b border-gray-700 space-y-2">
+        <input
+          type="text"
+          placeholder="Search champion..."
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500"
+        />
+        <div className="flex gap-1 flex-wrap">
+          <button
+            onClick={() => setRoleFilter(null)}
+            className={`flex items-center justify-center w-8 h-8 rounded border transition-colors ${
+              !roleFilter
+                ? "bg-blue-600 border-blue-500"
+                : "bg-gray-800 border-gray-600 hover:border-gray-500"
+            }`}
+            title="All"
+          >
+            <img src={ALL_ROLES_ICON} alt="All" className="w-4 h-4" />
+          </button>
+          {roles.map((r) => (
             <button
-              onClick={() => setRoleFilter(null)}
-              className={`px-2 py-1 rounded text-xs font-medium ${
-                !roleFilter
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-800 text-gray-400 hover:text-white"
+              key={r}
+              onClick={() => setRoleFilter(r === roleFilter ? null : r)}
+              className={`flex items-center justify-center w-8 h-8 rounded border transition-colors ${
+                roleFilter === r
+                  ? "bg-blue-600 border-blue-500"
+                  : "bg-gray-800 border-gray-600 hover:border-gray-500"
               }`}
+              title={r.toUpperCase()}
             >
-              All
+              <img
+                src={ROLE_ICONS[r as keyof typeof ROLE_ICONS]}
+                alt={r.toUpperCase()}
+                className="w-4 h-4"
+              />
             </button>
-            {roles.map((r) => (
-              <button
-                key={r}
-                onClick={() => setRoleFilter(r === roleFilter ? null : r)}
-                className={`px-2 py-1 rounded text-xs font-medium ${
-                  roleFilter === r
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-800 text-gray-400 hover:text-white"
+          ))}
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-3">
+        <div className="grid grid-cols-6 sm:grid-cols-7 md:grid-cols-8 gap-2">
+          {filtered.map((c) => (
+            <button
+              key={`${c.name}-${c.role}`}
+              onClick={() => onSelect(c.name)}
+              className="flex flex-col items-center p-2 rounded-lg border border-gray-700 bg-gray-800/50 hover:border-gray-500 hover:bg-gray-800 cursor-pointer transition-all"
+            >
+              <ChampionIcon name={c.name} size={40} className="mb-1" />
+              <span className="text-xs font-medium text-gray-200 truncate w-full text-center">
+                {c.name}
+              </span>
+              {!roleFilter && (
+                <span className="text-[9px] text-blue-400 uppercase font-medium">
+                  {c.role}
+                </span>
+              )}
+              <span
+                className={`text-[10px] font-mono ${
+                  c.winrate >= 50 ? "text-green-400" : "text-red-400"
                 }`}
               >
-                {r.toUpperCase()}
-              </button>
-            ))}
-          </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white text-xl leading-none"
-          >
-            &times;
-          </button>
-        </div>
-        <div className="p-4 overflow-y-auto grid grid-cols-6 sm:grid-cols-8 gap-2">
-          {filtered.map((c) => (
-            <ChampionCard
-              key={c.name}
-              champion={c}
-              onClick={() => onSelect(c.name)}
-            />
+                {c.winrate.toFixed(1)}%
+              </span>
+              <span className="text-[9px] text-gray-500">{c.games}g</span>
+            </button>
           ))}
           {filtered.length === 0 && (
             <p className="col-span-full text-center text-gray-500 py-8">

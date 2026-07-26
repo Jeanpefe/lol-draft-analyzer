@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import type { ChampionStats, DraftState, Filters } from "../types/draft";
 import { useDraftState } from "../hooks/useDraftState";
 import { api } from "../api/client";
-import { ROLES, VALID_SLOTS } from "../constants";
+import { VALID_SLOTS } from "../constants";
 import { getSideStyles } from "../theme";
 import DraftBoard from "../components/DraftBoard";
 import FactorsList from "../components/FactorsList";
@@ -22,11 +22,11 @@ export default function SimulatorPage() {
 
   const [champions, setChampions] = useState<ChampionStats[]>([]);
   const [activeRecSlot, setActiveRecSlot] = useState<string | null>(null);
+  const [activeSlot, setActiveSlot] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<Filters>({});
   const [leagues, setLeagues] = useState<string[]>([]);
   const [patches, setPatches] = useState<string[]>([]);
-  const [availableNames, setAvailableNames] = useState<string[] | null>(null);
 
   useEffect(() => {
     Promise.all([api.getLeagues(), api.getPatches()])
@@ -41,31 +41,16 @@ export default function SimulatorPage() {
     api.getChampions(filters).then(setChampions).catch((e) => setError(String(e)));
   }, [filters]);
 
-  useEffect(() => {
-    api
-      .getAvailableChampions(draft)
-      .then(setAvailableNames)
-      .catch(() => setAvailableNames(null));
-  }, [draft]);
-
   const selectedChampions = useMemo(() => {
-    if (availableNames) {
-      const available = new Set(availableNames);
-      return new Set(
-        champions
-          .map((c) => c.name)
-          .filter((name) => !available.has(name)),
-      );
-    }
     const banned = new Set([...draft.blue_bans, ...draft.red_bans]);
     const picked = new Set<string>(
-      ROLES.flatMap((r) => [
+      ["top", "jng", "mid", "bot", "sup"].flatMap((r) => [
         draft[`blue_${r}` as keyof DraftState],
         draft[`red_${r}` as keyof DraftState],
       ]).filter((x): x is string => typeof x === "string"),
     );
     return new Set([...banned, ...picked]);
-  }, [draft, availableNames, champions]);
+  }, [draft]);
 
   const handleRecRequest = (slot: string) => {
     setActiveRecSlot(slot);
@@ -73,7 +58,7 @@ export default function SimulatorPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-white">Simulador de Draft</h1>
         <button
@@ -95,6 +80,7 @@ export default function SimulatorPage() {
         onChange={setFilters}
         leagues={leagues}
         patches={patches}
+        hideRoleFilter
       />
 
       {champions.length === 0 && !error ? (
@@ -107,13 +93,15 @@ export default function SimulatorPage() {
           analysis={analysis}
           availableChampions={champions}
           selectedChampions={selectedChampions}
+          activeSlot={activeSlot}
+          onSetActiveSlot={setActiveSlot}
           onPick={(slot, champ) => setPick(slot, champ)}
           onBan={setBan}
           onRemoveBan={removeBan}
         />
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
           <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
             Pick Recommendations

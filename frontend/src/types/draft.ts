@@ -181,4 +181,5 @@ export interface Filters {
   patch?: string;
   date_from?: string;
   date_to?: string;
+  role?: string;
 }
