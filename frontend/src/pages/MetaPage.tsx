@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { ChampionStats, Filters } from "../types/draft";
 import { api } from "../api/client";
 import { useAsyncData } from "../hooks/useAsyncData";
+import { useLeaguesAndPatches } from "../hooks/useLeaguesAndPatches";
 import FiltersBar from "../components/FiltersBar";
 import ChampionTable from "../components/ChampionTable";
 import ChampionDetailPanel from "../components/ChampionDetailPanel";
@@ -15,14 +16,7 @@ export default function MetaPage() {
   } | null>(null);
   const [showMatches, setShowMatches] = useState(false);
 
-  const { data: leagues } = useAsyncData<string[]>(
-    (signal) => api.getLeagues(signal),
-    [],
-  );
-  const { data: patches } = useAsyncData<string[]>(
-    (signal) => api.getPatches(signal),
-    [],
-  );
+  const { leagues, patches } = useLeaguesAndPatches();
 
   const { data: champions, loading } = useAsyncData<ChampionStats[]>(
     (signal) => api.getChampions(filters, signal),
@@ -36,8 +30,8 @@ export default function MetaPage() {
       <FiltersBar
         filters={filters}
         onChange={setFilters}
-        leagues={leagues ?? []}
-        patches={patches ?? []}
+        leagues={leagues}
+        patches={patches}
       />
 
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
@@ -61,6 +55,9 @@ export default function MetaPage() {
         <ChampionDetailPanel
           championName={selectedChampion.name}
           initialRole={selectedChampion.role}
+          filters={filters}
+          leagues={leagues}
+          patches={patches}
           onClose={() => setSelectedChampion(null)}
           onShowMatches={() => setShowMatches(true)}
         />
@@ -71,6 +68,8 @@ export default function MetaPage() {
           championName={selectedChampion.name}
           role={selectedChampion.role}
           filters={filters}
+          leagues={leagues}
+          patches={patches}
           onClose={() => {
             setShowMatches(false);
             setSelectedChampion(null);

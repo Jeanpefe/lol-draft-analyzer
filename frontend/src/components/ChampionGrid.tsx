@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import type { ChampionStats } from "../types/draft";
+import { getWinrateColorClass } from "../theme";
 import ChampionIcon from "./ChampionIcon";
 import { ROLE_ICONS, ALL_ROLES_ICON } from "../constants";
 
@@ -29,7 +30,7 @@ export default function ChampionGrid({
         if (roleFilter && c.role !== roleFilter) return false;
         return true;
       })
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort((a, b) => b.winrate - a.winrate);
   }, [champions, filter, roleFilter, selectedChampions]);
 
   return (
@@ -93,9 +94,7 @@ export default function ChampionGrid({
                 </span>
               )}
               <span
-                className={`text-[10px] font-mono ${
-                  c.winrate >= 50 ? "text-green-400" : "text-red-400"
-                }`}
+                className={`text-[10px] font-mono ${getWinrateColorClass(c.winrate)}`}
               >
                 {c.winrate.toFixed(1)}%
               </span>

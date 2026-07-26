@@ -1,27 +1,24 @@
-import { useEffect, useState } from "react";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  ReferenceLine,
-} from "recharts";
+import React, { Suspense, useEffect, useState } from "react";
 import type {
   ChampionStats,
   CounterResult,
   SynergyResult,
   PatchEvolution,
+  Filters,
 } from "../types/draft";
 import { api } from "../api/client";
 import { ROLES } from "../constants";
 import ChampionIcon from "./ChampionIcon";
+import FilterControls from "./FilterControls";
+
+const PatchEvolutionChart = React.lazy(() => import("./PatchEvolutionChart"));
 
 interface ChampionDetailPanelProps {
   championName: string;
   initialRole?: string;
+  filters?: Filters;
+  leagues: string[];
+  patches: string[];
   onClose: () => void;
   onShowMatches: () => void;
 }
@@ -29,9 +26,18 @@ interface ChampionDetailPanelProps {
 export default function ChampionDetailPanel({
   championName,
   initialRole,
+  filters,
+  leagues,
+  patches,
   onClose,
   onShowMatches,
 }: ChampionDetailPanelProps) {
+  const [localFilters, setLocalFilters] = useState<Filters>(() => ({
+    league: filters?.league,
+    patch: filters?.patch,
+    date_from: filters?.date_from,
+    date_to: filters?.date_to,
+  }));
   const [roleStats, setRoleStats] = useState<ChampionStats[]>([]);
   const [selectedRole, setSelectedRole] = useState<string>(initialRole ?? "");
   const [counters, setCounters] = useState<CounterResult[]>([]);
@@ -40,34 +46,53 @@ export default function ChampionDetailPanel({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const filtersKey = JSON.stringify(localFilters);
+
   useEffect(() => {
     setLoading(true);
     setError(null);
+    const controller = new AbortController();
+    const f = localFilters;
     Promise.all([
-      api.getChampion(championName),
-      api.getChampionSynergies(championName),
-      api.getChampionEvolution(championName),
+      api.getChampion(championName, f, controller.signal),
+      api.getChampionSynergies(championName, f, controller.signal),
+      api.getChampionEvolution(championName, f, controller.signal),
     ])
       .then(([stats, syn, evo]) => {
-        setRoleStats(stats);
-        setSynergies(syn);
-        setEvolution(evo);
-        if (stats.length > 0) {
-          setSelectedRole(initialRole ?? stats[0].role);
+        if (!controller.signal.aborted) {
+          setRoleStats(stats);
+          setSynergies(syn);
+          setEvolution(evo);
+          if (stats.length > 0) {
+            setSelectedRole(initialRole ?? stats[0].role);
+          }
         }
       })
-      .catch((err) => setError(String(err)))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (!controller.signal.aborted) setError(String(err));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [championName]);
+  }, [championName, filtersKey]);
 
   useEffect(() => {
     if (!selectedRole) return;
+    const controller = new AbortController();
+    const f = localFilters;
     api
-      .getChampionCounters(championName, selectedRole)
-      .then(setCounters)
-      .catch(() => setCounters([]));
-  }, [championName, selectedRole]);
+      .getChampionCounters(championName, selectedRole, f, controller.signal)
+      .then((data) => {
+        if (!controller.signal.aborted) setCounters(data);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setCounters([]);
+      });
+    return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [championName, selectedRole, filtersKey]);
 
   const activeRole = roleStats.find((r) => r.role === selectedRole);
 
@@ -140,6 +165,14 @@ export default function ChampionDetailPanel({
               })}
             </div>
 
+            <FilterControls
+              filters={localFilters}
+              onChange={setLocalFilters}
+              leagues={leagues}
+              patches={patches}
+              size="sm"
+            />
+
             {activeRole && (
               <div className="grid grid-cols-3 gap-4">
                 <div className="bg-gray-800/50 rounded-lg p-3 text-center">
@@ -168,48 +201,9 @@ export default function ChampionDetailPanel({
                 <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
                   Win Rate by Patch
                 </h3>
-                <ResponsiveContainer width="100%" height={220}>
-                  <LineChart data={evolution}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                    <XAxis
-                      dataKey="patch"
-                      tick={{ fill: "#9CA3AF", fontSize: 11 }}
-                      stroke="#4B5563"
-                    />
-                    <YAxis
-                      domain={[30, 70]}
-                      tick={{ fill: "#9CA3AF", fontSize: 11 }}
-                      stroke="#4B5563"
-                      tickFormatter={(v: number) => `${v}%`}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#1F2937",
-                        border: "1px solid #374151",
-                        borderRadius: "8px",
-                        color: "#F3F4F6",
-                        fontSize: 12,
-                      }}
-                      formatter={(value: number) => [
-                        `${value}%`,
-                        "Win Rate",
-                      ]}
-                    />
-                    <ReferenceLine
-                      y={50}
-                      stroke="#6B7280"
-                      strokeDasharray="3 3"
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="winrate"
-                      stroke="#3B82F6"
-                      strokeWidth={2}
-                      dot={{ fill: "#3B82F6", r: 3 }}
-                      activeDot={{ r: 5 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                <Suspense fallback={<div className="h-[220px] bg-gray-800/30 rounded-xl animate-pulse" />}>
+                  <PatchEvolutionChart data={evolution} />
+                </Suspense>
                 <div className="flex justify-between text-[10px] text-gray-500 mt-1 px-1">
                   {evolution.map((e) => (
                     <span key={e.patch}>
@@ -220,10 +214,10 @@ export default function ChampionDetailPanel({
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               <div className="bg-gray-800/30 rounded-xl p-4">
                 <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                  Counters ({selectedRole.toUpperCase()})
+                  Best Against ({selectedRole.toUpperCase()})
                 </h3>
                 {counters.length === 0 ? (
                   <p className="text-gray-500 text-sm">
@@ -231,7 +225,38 @@ export default function ChampionDetailPanel({
                   </p>
                 ) : (
                   <div className="space-y-1.5">
-                    {counters.slice(0, 8).map((c) => (
+                    {[...counters].reverse().slice(0, 5).map((c) => (
+                      <div
+                        key={c.champion}
+                        className="flex items-center gap-2 px-2 py-1.5 rounded bg-gray-800/50"
+                      >
+                        <ChampionIcon name={c.champion} size={24} />
+                        <span className="text-white text-sm flex-1">
+                          {c.champion}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {c.games}g
+                        </span>
+                        <span className="text-sm font-mono text-green-400">
+                          {((1 - c.winrate_against) * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-gray-800/30 rounded-xl p-4">
+                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
+                  Worst Against ({selectedRole.toUpperCase()})
+                </h3>
+                {counters.length === 0 ? (
+                  <p className="text-gray-500 text-sm">
+                    No counter data for this role
+                  </p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {counters.slice(0, 5).map((c) => (
                       <div
                         key={c.champion}
                         className="flex items-center gap-2 px-2 py-1.5 rounded bg-gray-800/50"
@@ -244,7 +269,7 @@ export default function ChampionDetailPanel({
                           {c.games}g
                         </span>
                         <span className="text-sm font-mono text-red-400">
-                          {(c.winrate_against * 100).toFixed(1)}%
+                          {((1 - c.winrate_against) * 100).toFixed(1)}%
                         </span>
                       </div>
                     ))}
@@ -254,13 +279,13 @@ export default function ChampionDetailPanel({
 
               <div className="bg-gray-800/30 rounded-xl p-4">
                 <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                  Synergies
+                  Best Synergies
                 </h3>
                 {synergies.length === 0 ? (
                   <p className="text-gray-500 text-sm">No synergy data</p>
                 ) : (
                   <div className="space-y-1.5">
-                    {synergies.slice(0, 8).map((s) => (
+                    {synergies.slice(0, 5).map((s) => (
                       <div
                         key={s.champion}
                         className="flex items-center gap-2 px-2 py-1.5 rounded bg-gray-800/50"

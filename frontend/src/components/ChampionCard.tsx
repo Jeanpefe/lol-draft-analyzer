@@ -1,4 +1,5 @@
 import type { ChampionStats } from "../types/draft";
+import { getWinrateColorClass } from "../theme";
 import ChampionIcon from "./ChampionIcon";
 
 interface ChampionCardProps {
@@ -29,9 +30,7 @@ export default function ChampionCard({
         {champion.name}
       </span>
       <span
-        className={`text-[10px] font-mono ${
-          champion.winrate >= 50 ? "text-green-400" : "text-red-400"
-        }`}
+        className={`text-[10px] font-mono ${getWinrateColorClass(champion.winrate)}`}
       >
         {champion.winrate.toFixed(1)}%
       </span>

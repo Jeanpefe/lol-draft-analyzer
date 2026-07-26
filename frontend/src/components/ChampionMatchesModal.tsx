@@ -3,6 +3,7 @@ import type { ChampionMatch, Filters } from "../types/draft";
 import { api } from "../api/client";
 import { ROLES } from "../constants";
 import ChampionIcon from "../components/ChampionIcon";
+import FilterControls from "../components/FilterControls";
 import { StatRow, ObjectiveRow, SideTeam } from "../components/MatchView";
 
 const PAGE_SIZE = 10;
@@ -11,6 +12,8 @@ interface ChampionMatchesModalProps {
   championName: string;
   role?: string;
   filters?: Filters;
+  leagues: string[];
+  patches: string[];
   onClose: () => void;
 }
 
@@ -20,35 +23,34 @@ function formatDuration(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-function FilterBadge({ label, value }: { label: string; value: string }) {
-  return (
-    <span className="inline-flex items-center gap-1 text-[11px] bg-gray-700/50 text-gray-300 border border-gray-600/50 rounded-full px-2 py-0.5">
-      <span className="text-gray-500">{label}:</span>
-      <span className="font-medium">{value}</span>
-    </span>
-  );
-}
-
 export default function ChampionMatchesModal({
   championName,
   role,
   filters,
+  leagues,
+  patches,
   onClose,
 }: ChampionMatchesModalProps) {
+  const [localFilters, setLocalFilters] = useState<Filters>(() => ({
+    league: filters?.league,
+    patch: filters?.patch,
+    date_from: filters?.date_from,
+    date_to: filters?.date_to,
+  }));
   const [matches, setMatches] = useState<ChampionMatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
 
-  const filtersKey = JSON.stringify(filters || {});
+  const filtersKey = JSON.stringify(localFilters);
 
   useEffect(() => {
     setLoading(true);
     setPage(0);
     const params: Record<string, string> = {};
-    if (filters?.league) params.league = filters.league;
-    if (filters?.patch) params.patch = filters.patch;
-    if (filters?.date_from) params.date_from = filters.date_from;
-    if (filters?.date_to) params.date_to = filters.date_to;
+    if (localFilters.league) params.league = localFilters.league;
+    if (localFilters.patch) params.patch = localFilters.patch;
+    if (localFilters.date_from) params.date_from = localFilters.date_from;
+    if (localFilters.date_to) params.date_to = localFilters.date_to;
     if (role) params.role = role;
     api
       .getChampionMatches(championName, params as Filters & { role?: string })
@@ -74,13 +76,11 @@ export default function ChampionMatchesModal({
     return false;
   }).length;
 
-  const activeFilterBadges: { label: string; value: string }[] = [];
-  if (filters?.league) activeFilterBadges.push({ label: "League", value: filters.league });
-  if (filters?.patch) activeFilterBadges.push({ label: "Patch", value: filters.patch });
-  if (filters?.role) activeFilterBadges.push({ label: "Role", value: filters.role.toUpperCase() });
-  else if (role) activeFilterBadges.push({ label: "Role", value: role.toUpperCase() });
-  if (filters?.date_from) activeFilterBadges.push({ label: "From", value: filters.date_from });
-  if (filters?.date_to) activeFilterBadges.push({ label: "To", value: filters.date_to });
+  const roleLabel = localFilters.role
+    ? localFilters.role.toUpperCase()
+    : role
+      ? role.toUpperCase()
+      : null;
 
   return (
     <div
@@ -112,16 +112,21 @@ export default function ChampionMatchesModal({
           </button>
         </div>
 
-        {activeFilterBadges.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 px-5 py-2 border-b border-gray-800 bg-gray-800/30">
-            <span className="text-[11px] text-gray-500 uppercase tracking-wider mr-1">
-              Filters:
+        <div className="flex flex-wrap items-center gap-3 px-5 py-2.5 border-b border-gray-800 bg-gray-800/30">
+          <FilterControls
+            filters={localFilters}
+            onChange={setLocalFilters}
+            leagues={leagues}
+            patches={patches}
+            size="sm"
+          />
+          {roleLabel && (
+            <span className="inline-flex items-center gap-1 text-[11px] bg-gray-700/50 text-gray-300 border border-gray-600/50 rounded-full px-2 py-0.5">
+              <span className="text-gray-500">Role:</span>
+              <span className="font-medium">{roleLabel}</span>
             </span>
-            {activeFilterBadges.map((f) => (
-              <FilterBadge key={f.label} label={f.label} value={f.value} />
-            ))}
-          </div>
-        )}
+          )}
+        </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {loading ? (

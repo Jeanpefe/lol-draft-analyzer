@@ -1,9 +1,10 @@
 import { useEffect, useState, useMemo } from "react";
 import type { ChampionStats, DraftState, Filters } from "../types/draft";
 import { useDraftState } from "../hooks/useDraftState";
+import { useLeaguesAndPatches } from "../hooks/useLeaguesAndPatches";
 import { api } from "../api/client";
 import { VALID_SLOTS } from "../constants";
-import { getSideStyles } from "../theme";
+import { getSideStyles, getWinrateColorClass } from "../theme";
 import DraftBoard from "../components/DraftBoard";
 import FactorsList from "../components/FactorsList";
 import FiltersBar from "../components/FiltersBar";
@@ -20,22 +21,13 @@ export default function SimulatorPage() {
     getRecommendations,
   } = useDraftState();
 
+  const { leagues, patches } = useLeaguesAndPatches();
+
   const [champions, setChampions] = useState<ChampionStats[]>([]);
   const [activeRecSlot, setActiveRecSlot] = useState<string | null>(null);
   const [activeSlot, setActiveSlot] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<Filters>({});
-  const [leagues, setLeagues] = useState<string[]>([]);
-  const [patches, setPatches] = useState<string[]>([]);
-
-  useEffect(() => {
-    Promise.all([api.getLeagues(), api.getPatches()])
-      .then(([l, p]) => {
-        setLeagues(l);
-        setPatches(p);
-      })
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     api.getChampions(filters).then(setChampions).catch((e) => setError(String(e)));
@@ -140,11 +132,7 @@ export default function SimulatorPage() {
                     {rec.champion}
                   </span>
                   <span
-                    className={`text-sm font-mono ${
-                      rec.predicted_winrate >= 50
-                        ? "text-green-400"
-                        : "text-red-400"
-                    }`}
+                    className={`text-sm font-mono ${getWinrateColorClass(rec.predicted_winrate)}`}
                   >
                     {rec.predicted_winrate.toFixed(1)}%
                   </span>

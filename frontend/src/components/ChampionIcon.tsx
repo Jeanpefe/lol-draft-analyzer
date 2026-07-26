@@ -31,6 +31,7 @@ export default function ChampionIcon({
       alt={name}
       className={`rounded-full object-cover shrink-0 ${className}`}
       style={{ width: size, height: size }}
+      loading="lazy"
       onError={() => setImgError(true)}
     />
   );

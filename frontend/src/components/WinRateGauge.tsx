@@ -1,3 +1,6 @@
+import React from "react";
+import { getWinrateColorClass, getWinrateColorHex } from "../theme";
+
 interface WinRateGaugeProps {
   winrate: number;
   confidence?: "low" | "medium" | "high";
@@ -10,24 +13,10 @@ const colorMap: Record<string, string> = {
   low: "text-red-400",
 };
 
-function getWrColor(wr: number): string {
-  if (wr >= 55) return "text-green-400";
-  if (wr >= 50) return "text-emerald-400";
-  if (wr >= 45) return "text-yellow-400";
-  return "text-red-400";
-}
-
-function getStrokeColor(wr: number): string {
-  if (wr >= 55) return "#4ade80";
-  if (wr >= 50) return "#34d399";
-  if (wr >= 45) return "#facc15";
-  return "#f87171";
-}
-
 const sizeMap = { sm: 48, md: 72, lg: 96 };
 const strokeMap = { sm: 4, md: 5, lg: 6 };
 
-export default function WinRateGauge({
+export default React.memo(function WinRateGauge({
   winrate,
   confidence,
   size = "md",
@@ -57,7 +46,7 @@ export default function WinRateGauge({
             cy={sizeMap[size] / 2}
             r={r}
             fill="none"
-            stroke={getStrokeColor(winrate)}
+            stroke={getWinrateColorHex(winrate)}
             strokeWidth={strokeMap[size]}
             strokeDasharray={circumference}
             strokeDashoffset={offset}
@@ -66,7 +55,7 @@ export default function WinRateGauge({
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className={`text-sm font-bold ${getWrColor(winrate)}`}>
+          <span className={`text-sm font-bold ${getWinrateColorClass(winrate)}`}>
             {winrate.toFixed(1)}%
           </span>
         </div>
@@ -80,4 +69,4 @@ export default function WinRateGauge({
       )}
     </div>
   );
-}
+});

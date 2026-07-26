@@ -29,7 +29,16 @@ export function getSideStyles(side: Side): SideStyles {
   return sideStyles[side];
 }
 
-export function getWinrateColor(wr: number): string {
-  if (wr >= 50) return "text-green-400";
+export function getWinrateColorClass(wr: number): string {
+  if (wr >= 55) return "text-green-400";
+  if (wr >= 50) return "text-emerald-400";
+  if (wr >= 45) return "text-yellow-400";
   return "text-red-400";
+}
+
+export function getWinrateColorHex(wr: number): string {
+  if (wr >= 55) return "#4ade80";
+  if (wr >= 50) return "#34d399";
+  if (wr >= 45) return "#facc15";
+  return "#f87171";
 }

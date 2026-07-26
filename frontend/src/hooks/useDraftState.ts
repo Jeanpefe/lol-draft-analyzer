@@ -80,18 +80,27 @@ export function useDraftState() {
       return;
     }
 
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
+    const timer = setTimeout(() => {
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
 
-    api
-      .analyzeDraft(draft, controller.signal)
-      .then((result) => {
-        if (!controller.signal.aborted) setAnalysis(result);
-      })
-      .catch(() => {});
+      api
+        .analyzeDraft(draft, controller.signal)
+        .then((result) => {
+          if (!controller.signal.aborted) setAnalysis(result);
+        })
+        .catch((err) => {
+          if (!controller.signal.aborted) {
+            console.error("Draft analysis failed:", err);
+          }
+        });
+    }, 300);
 
-    return () => controller.abort();
+    return () => {
+      clearTimeout(timer);
+      abortRef.current?.abort();
+    };
   }, [draft]);
 
   return {

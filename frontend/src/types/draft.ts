@@ -57,6 +57,12 @@ export interface ChampionDetail {
   top_synergies: { champion: string; wr: number }[];
 }
 
+export interface TeamInfo {
+  name: string;
+  leagues: string[];
+  logo?: string;
+}
+
 export interface TeamDraftHistory {
   teamname: string;
   matches: {
@@ -73,7 +79,7 @@ export interface TeamDraftHistory {
 export interface MatchSideData {
   teamname: string;
   bans: string[];
-  roles: Record<string, { champion: string | null; player: string | null }>;
+  roles: Record<string, { champion: string | null; player: string | null; damage: number; kills: number; deaths: number; assists: number }>;
   result: string;
   kills: number;
   deaths: number;
@@ -81,6 +87,13 @@ export interface MatchSideData {
   teamkills: number;
   teamdeaths: number;
   dragons: number;
+  infernals: number;
+  mountains: number;
+  clouds: number;
+  oceans: number;
+  chemtechs: number;
+  hextechs: number;
+  elders: number;
   barons: number;
   towers: number;
   inhibitors: number;
@@ -103,6 +116,10 @@ export interface MatchDetail {
 export interface ChampionMatchRole {
   champion: string | null;
   player: string | null;
+  damage: number;
+  kills: number;
+  deaths: number;
+  assists: number;
 }
 
 export interface ChampionMatchSide {
@@ -123,6 +140,12 @@ export interface ChampionMatchSide {
   firstblood: boolean | null;
   dragons: number;
   opp_dragons: number;
+  infernals: number;
+  mountains: number;
+  clouds: number;
+  oceans: number;
+  chemtechs: number;
+  hextechs: number;
   elders: number;
   opp_elders: number;
   heralds: number;

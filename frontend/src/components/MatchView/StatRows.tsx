@@ -1,7 +1,4 @@
-function formatNumber(n: number): string {
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
-  return String(Math.round(n));
-}
+import { formatNumber } from "../../utils/format";
 
 export function StatRow({
   label,
@@ -15,7 +12,7 @@ export function StatRow({
   higherIsBetter?: boolean;
 }) {
   const blueWins = higherIsBetter ? blue > red : blue < red;
-  const redWins = higherIsBetter ? red > blue : red > blue;
+  const redWins = higherIsBetter ? red > blue : red < blue;
   return (
     <div className="flex items-center gap-2 text-[10px]">
       <span className={`w-16 text-right tabular-nums ${blueWins ? "text-green-400 font-medium" : "text-gray-400"}`}>

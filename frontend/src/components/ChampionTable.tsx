@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -7,8 +7,8 @@ import {
   createColumnHelper,
   type SortingState,
 } from "@tanstack/react-table";
-import { useState } from "react";
 import type { ChampionStats } from "../types/draft";
+import { getWinrateColorClass } from "../theme";
 import ChampionIcon from "./ChampionIcon";
 import { ROLE_ICONS } from "../constants";
 import type { Role } from "../constants";
@@ -58,7 +58,7 @@ function buildColumns(onChampionClick?: (name: string, role: string) => void) {
       cell: (info) => {
         const wr = info.getValue();
         return (
-          <span className={wr >= 50 ? "text-green-400" : "text-red-400"}>
+          <span className={getWinrateColorClass(wr)}>
             {wr.toFixed(1)}%
           </span>
         );
@@ -80,7 +80,7 @@ export default function ChampionTable({ data, onChampionClick }: ChampionTablePr
   const columns = useMemo(() => buildColumns(onChampionClick), [onChampionClick]);
 
   const table = useReactTable({
-    data: useMemo(() => data, [data]),
+    data,
     columns,
     state: { sorting },
     onSortingChange: setSorting,

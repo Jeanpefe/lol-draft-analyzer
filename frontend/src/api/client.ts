@@ -5,6 +5,7 @@ import type {
   DraftAnalysis,
   PickRecommendation,
   TeamDraftHistory,
+  TeamInfo,
   MatchDetail,
   Filters,
   CounterResult,
@@ -42,24 +43,27 @@ export const api = {
       { signal },
     ),
 
-  getChampion: (name: string, signal?: AbortSignal) =>
-    fetchAPI<ChampionStats[]>(`/api/champions/${encodeURIComponent(name)}`, { signal }),
+  getChampion: (name: string, params?: Filters, signal?: AbortSignal) =>
+    fetchAPI<ChampionStats[]>(
+      `/api/champions/${encodeURIComponent(name)}` + buildQuery(params),
+      { signal },
+    ),
 
-  getChampionCounters: (name: string, role: string, signal?: AbortSignal) =>
+  getChampionCounters: (name: string, role: string, params?: Filters, signal?: AbortSignal) =>
     fetchAPI<CounterResult[]>(
-      `/api/champions/${encodeURIComponent(name)}/counters?role=${role}`,
+      `/api/champions/${encodeURIComponent(name)}/counters` + buildQuery({ role, ...params }),
       { signal },
     ),
 
-  getChampionSynergies: (name: string, signal?: AbortSignal) =>
+  getChampionSynergies: (name: string, params?: Filters, signal?: AbortSignal) =>
     fetchAPI<SynergyResult[]>(
-      `/api/champions/${encodeURIComponent(name)}/synergies`,
+      `/api/champions/${encodeURIComponent(name)}/synergies` + buildQuery(params),
       { signal },
     ),
 
-  getChampionEvolution: (name: string, signal?: AbortSignal) =>
+  getChampionEvolution: (name: string, params?: Filters, signal?: AbortSignal) =>
     fetchAPI<PatchEvolution[]>(
-      `/api/champions/${encodeURIComponent(name)}/evolution`,
+      `/api/champions/${encodeURIComponent(name)}/evolution` + buildQuery(params),
       { signal },
     ),
 
@@ -93,8 +97,8 @@ export const api = {
       signal,
     }),
 
-  getTeams: (signal?: AbortSignal) =>
-    fetchAPI<string[]>("/api/teams", { signal }),
+  getTeams: (params?: { league?: string }, signal?: AbortSignal) =>
+    fetchAPI<TeamInfo[]>("/api/teams" + buildQuery(params), { signal }),
 
   getTeamDraft: (name: string, signal?: AbortSignal) =>
     fetchAPI<TeamDraftHistory>(
