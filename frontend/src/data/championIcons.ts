@@ -1,5 +1,4 @@
-const CDN_BASE =
-  "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/champion-icons";
+const CDN_BASE = "/champion-icons";
 
 const CHAMPION_IDS: Record<string, string> = {
   Aatrox: "266",
