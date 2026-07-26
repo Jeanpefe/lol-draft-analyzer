@@ -84,6 +84,11 @@ def get_champion_synergies(name: str) -> list[SynergyResult]:
     return engine.get_synergies(name)
 
 
+@app.get("/api/champions/{name}/evolution")
+def get_champion_evolution(name: str) -> list[dict]:
+    return engine.get_champion_evolution(name)
+
+
 @app.post("/api/draft/analyze")
 def analyze_draft(draft: DraftState) -> DraftAnalysis:
     return engine.calculate_winrate(draft)
@@ -110,11 +115,11 @@ def list_teams() -> list[str]:
 
 
 @app.get("/api/teams/{name}/draft")
-def team_draft_history(name: str) -> list[TeamDraftRecord]:
+def team_draft_history(name: str) -> dict:
     records = engine.get_team_draft(name)
     if not records:
         raise HTTPException(status_code=404, detail=f"Team '{name}' not found")
-    return records
+    return {"teamname": name, "matches": records}
 
 
 @app.get("/api/leagues")

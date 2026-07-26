@@ -125,7 +125,7 @@ def _build_champion_role_wr_aggregated(df: pd.DataFrame) -> pd.DataFrame:
 
 def _build_matchup_wr(df: pd.DataFrame) -> pd.DataFrame:
     rows = []
-    for _, row in df.iterrows():
+    for _, row in df[df["side"] == "Blue"].iterrows():
         won = row["result"]
         for role in ROLES:
             b_champ = row.get(f"blue_{role}")
@@ -148,7 +148,7 @@ def _build_matchup_wr(df: pd.DataFrame) -> pd.DataFrame:
 
 def _build_synergy_wr(df: pd.DataFrame) -> pd.DataFrame:
     rows = []
-    for _, row in df.iterrows():
+    for _, row in df[df["side"] == "Blue"].iterrows():
         won = row["result"]
         for side in SIDES:
             prefix = side.lower()
@@ -526,20 +526,36 @@ def get_champion_detail(name: str) -> list[ChampionStats]:
 
 
 def get_counters(champion: str, role: str) -> list[CounterResult]:
-    subset = tables["matchup_wr"][
+    subset_a = tables["matchup_wr"][
         (tables["matchup_wr"]["champ_a"] == champion)
         & (tables["matchup_wr"]["role"] == role)
         & (tables["matchup_wr"]["games"] >= 5)
     ]
+    subset_b = tables["matchup_wr"][
+        (tables["matchup_wr"]["champ_b"] == champion)
+        & (tables["matchup_wr"]["role"] == role)
+        & (tables["matchup_wr"]["games"] >= 5)
+    ]
     results = []
-    for _, row in subset.iterrows():
+    for _, row in subset_a.iterrows():
         results.append(CounterResult(
             champion=row["champ_b"],
             games=int(row["games"]),
             winrate_against=round(1.0 - row["wr"], 4),
-            description=f"{champion} wins {(1 - row['wr']):.1%} vs {row['champ_b']}",
+            description=f"{row['champ_b']} beats {champion} {((1 - row['wr']) * 100):.1f}% of the time",
         ))
-    return sorted(results, key=lambda x: x.winrate_against, reverse=True)
+    for _, row in subset_b.iterrows():
+        results.append(CounterResult(
+            champion=row["champ_a"],
+            games=int(row["games"]),
+            winrate_against=round(row["wr"], 4),
+            description=f"{row['champ_a']} beats {champion} {(row['wr'] * 100):.1f}% of the time",
+        ))
+    seen = {}
+    for r in results:
+        if r.champion not in seen or r.games > seen[r.champion].games:
+            seen[r.champion] = r
+    return sorted(seen.values(), key=lambda x: x.winrate_against, reverse=True)
 
 
 def get_synergies(champion: str) -> list[SynergyResult]:
@@ -648,6 +664,34 @@ def get_leagues() -> list[str]:
 
 def get_patches() -> list[str]:
     return sorted(tables["raw"]["patch"].dropna().astype(str).unique().tolist())
+
+
+def get_champion_evolution(champion: str) -> list[dict]:
+    df = tables["raw"]
+    rows = []
+    for _, row in df[df["side"] == "Blue"].iterrows():
+        won = row["result"]
+        for role in ROLES:
+            for prefix in ["blue", "red"]:
+                col = f"{prefix}_{role}"
+                if pd.notna(row.get(col)) and row[col] == champion:
+                    rows.append({
+                        "patch": str(row.get("patch", "")),
+                        "won": int(won == 1) if prefix == "blue" else int(won == 0),
+                    })
+    if not rows:
+        return []
+    tmp = pd.DataFrame(rows)
+    grouped = tmp.groupby("patch").agg(
+        games=("won", "count"),
+        wins=("won", "sum"),
+    ).reset_index()
+    grouped["winrate"] = grouped["wins"] / grouped["games"]
+    grouped = grouped.sort_values("patch")
+    return [
+        {"patch": row["patch"], "games": int(row["games"]), "winrate": round(row["winrate"] * 100, 1)}
+        for _, row in grouped.iterrows()
+    ]
 
 
 def get_match(gameid: str) -> dict | None:
